@@ -101,9 +101,9 @@ RUN cp docker/cron-run.sh /usr/local/bin/myinvoice-cron-run \
 RUN echo '<?php return [];' > cfg.php && chown www-data:www-data cfg.php
 
 # Single persistent data dir (parity s Debian — drží log/storage/private/cfg.local.php).
+# Bez Docker `VOLUME` — Railway Dockerfile VOLUME odmítá; mount `/data` přes platformní volume.
 RUN mkdir -p /data/log /data/storage /data/private \
  && chown -R www-data:www-data /data
-VOLUME ["/data"]
 
 # Default stateful adresáře (fallback pro custom compose bez DATA_DIR).
 RUN mkdir -p log storage private && chown -R www-data:www-data log storage private

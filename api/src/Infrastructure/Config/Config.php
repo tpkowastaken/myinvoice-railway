@@ -272,6 +272,14 @@ final class Config
             'MYSQL_DATABASE' => ['db.name', 'string'],
             'MYSQL_USER'     => ['db.user', 'string'],
             'MYSQL_PASSWORD' => ['db.pass', 'string'],
+            // Railway managed MySQL injects these *without* underscores
+            // (MYSQLHOST / MYSQLPORT / …). Prefer MYSQL_URL when available;
+            // keep per-key aliases so shared-variable wiring still works.
+            'MYSQLHOST'     => ['db.host', 'string'],
+            'MYSQLPORT'     => ['db.port', 'int'],
+            'MYSQLDATABASE' => ['db.name', 'string'],
+            'MYSQLUSER'     => ['db.user', 'string'],
+            'MYSQLPASSWORD' => ['db.pass', 'string'],
 
             // Redis
             'MYINVOICE_REDIS_ENABLED' => ['redis.enabled', 'bool'],

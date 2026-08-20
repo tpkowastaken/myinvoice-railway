@@ -53,5 +53,15 @@ final class DockerfileDataDirEnvTest extends TestCase
             . 'is enabled via docker-compose.yml environment: block (since 3.6.0). '
             . 'Hardcoding in image would prevent opt-out for custom deployments.',
         );
+
+        // Railway (a podobné PaaS) odmítá Docker `VOLUME` v Dockerfile a vyžaduje
+        // platformní volume. Compose named mount funguje i bez deklarace VOLUME.
+        self::assertDoesNotMatchRegularExpression(
+            '/^\s*VOLUME\b/m',
+            $codeOnly,
+            "{$relativePath} must NOT declare Docker VOLUME — Railway build fails with "
+            . '"docker VOLUME is not supported, use Railway Volumes". Mount /data via '
+            . 'compose or a Railway volume instead.',
+        );
     }
 }

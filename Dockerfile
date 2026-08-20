@@ -122,9 +122,12 @@ RUN echo '<?php return [];' > cfg.php && chown www-data:www-data cfg.php
 # private/dkim/ a cfg.local.php — per-instance konfigurace přežije image update.
 # Zpětně kompatibilní: pokud uživatel `MYINVOICE_DATA_DIR` neset (custom compose
 # bez env), aplikace fallbackuje na log/, storage/, private/ v rootu repa.
+#
+# Žádný Docker `VOLUME ["/data"]` — Railway (a podobné PaaS) Dockerfile VOLUME
+# odmítají a vyžadují platformní volume namountované na `/data`. Compose
+# bind/named mount funguje bez deklarace VOLUME.
 RUN mkdir -p /data/log /data/storage /data/private \
  && chown -R www-data:www-data /data
-VOLUME ["/data"]
 
 # Default stateful adresáře uvnitř image (fallback pro custom compose bez DATA_DIR).
 RUN mkdir -p log storage private && chown -R www-data:www-data log storage private

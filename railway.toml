@@ -1,0 +1,28 @@
+# MyInvoice — Railway config-as-code
+# https://docs.railway.com/config-as-code
+#
+# Required companion setup (dashboard / CLI — volumes aren't expressible here):
+#   1. MariaDB 10.6+ preferred (mariadb:11.8 image). Railway MySQL works for
+#      early schema but later migrations use MariaDB-only IF [NOT] EXISTS —
+#      use MariaDB, or accept that MySQL may fail mid-migrate.
+#   2. Volume mounted at /data on this service
+#   3. Variables on this service:
+#        MYINVOICE_DATA_DIR=/data
+#        MYINVOICE_PEPPER=<openssl rand -base64 32>
+#        MYINVOICE_SECRET_KEY=<openssl rand -base64 32>
+#        MYSQL_URL / DATABASE_URL → private DB URL
+#        MYINVOICE_APP_URL=https://<your-domain>   (set after domain exists)
+#        RAILWAY_RUN_UID=0                         (volume ownership)
+#
+# First boot runs migrations in docker-entrypoint.sh (retries until DB is up).
+# Dockerfile must NOT declare `VOLUME` — Railway rejects it at build time.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

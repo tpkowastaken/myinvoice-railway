@@ -1,6 +1,17 @@
 #!/usr/bin/env sh
 set -eu
 
+# PaaS volumes (Railway/Fly) mount over /data as root-owned and empty — prepare
+# the data dir before migrations/cron/Apache so www-data can write cfg.local.php,
+# storage/, and log/. No-op when MYINVOICE_DATA_DIR is unset (compose fallback).
+if [ -n "${MYINVOICE_DATA_DIR:-}" ]; then
+  mkdir -p \
+    "${MYINVOICE_DATA_DIR}/log" \
+    "${MYINVOICE_DATA_DIR}/storage" \
+    "${MYINVOICE_DATA_DIR}/private"
+  chown -R www-data:www-data "${MYINVOICE_DATA_DIR}" 2>/dev/null || true
+fi
+
 if [ "${MYINVOICE_SKIP_MIGRATIONS:-0}" != "1" ]; then
   attempts="${MYINVOICE_MIGRATE_ATTEMPTS:-20}"
   delay="${MYINVOICE_MIGRATE_DELAY:-3}"

@@ -3,6 +3,17 @@
 # Funkční parity s docker-entrypoint.sh (Debian/Apache): migrace → cron → web server.
 set -eu
 
+# PaaS volumes (Railway/Fly) mount over /data as root-owned and empty — prepare
+# the data dir before migrations/cron/nginx so www-data can write cfg.local.php,
+# storage/, and log/. No-op when MYINVOICE_DATA_DIR is unset (compose fallback).
+if [ -n "${MYINVOICE_DATA_DIR:-}" ]; then
+  mkdir -p \
+    "${MYINVOICE_DATA_DIR}/log" \
+    "${MYINVOICE_DATA_DIR}/storage" \
+    "${MYINVOICE_DATA_DIR}/private"
+  chown -R www-data:www-data "${MYINVOICE_DATA_DIR}" 2>/dev/null || true
+fi
+
 # Dynamický port (parity s Apache ${PORT} — Railway/Heroku/Fly přidělují port z env).
 PORT="${PORT:-80}"
 if [ "$PORT" != "80" ]; then

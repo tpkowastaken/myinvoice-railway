@@ -83,6 +83,23 @@ PHP);
         self::assertSame(3307, $cfg->get('db.port'));
     }
 
+    public function testRailwayMysqlHostAliasesWithoutUnderscoresApply(): void
+    {
+        $this->setEnv('MYSQLHOST', 'mysql.railway.internal');
+        $this->setEnv('MYSQLPORT', '3306');
+        $this->setEnv('MYSQLDATABASE', 'railway');
+        $this->setEnv('MYSQLUSER', 'root');
+        $this->setEnv('MYSQLPASSWORD', 'secret');
+
+        $cfg = Config::load($this->tmpDir);
+
+        self::assertSame('mysql.railway.internal', $cfg->get('db.host'));
+        self::assertSame(3306, $cfg->get('db.port'));
+        self::assertSame('railway', $cfg->get('db.name'));
+        self::assertSame('root', $cfg->get('db.user'));
+        self::assertSame('secret', $cfg->get('db.pass'));
+    }
+
     public function testSessionLockDefaultsToDisabledWithoutExplicitConfiguration(): void
     {
         $this->unsetEnv('MYINVOICE_SESSION_LOCK_AFTER_MINUTES');
