@@ -1,6 +1,15 @@
 #!/usr/bin/env sh
 set -eu
 
+# Apache MPM guard (AH00534: More than one MPM loaded). php:*-apache images
+# occasionally leave mpm_event enabled alongside mpm_prefork needed for mod_php.
+# Build-time cleanup in Dockerfile is not always enough on PaaS rebuilds.
+if command -v a2dismod >/dev/null 2>&1; then
+  a2dismod -f mpm_event mpm_worker 2>/dev/null || true
+  rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.*
+  a2enmod mpm_prefork 2>/dev/null || true
+fi
+
 # PaaS volumes (Railway/Fly) mount over /data as root-owned and empty — prepare
 # the data dir before migrations/cron/Apache so www-data can write cfg.local.php,
 # storage/, and log/. No-op when MYINVOICE_DATA_DIR is unset (compose fallback).
