@@ -57,13 +57,10 @@ RUN install-php-extensions \
         apt-get install -y --no-install-recommends librsvg2-bin; \
     fi \
  && a2enmod rewrite headers deflate expires \
- && (a2dismod -f mpm_event mpm_worker 2>/dev/null || true) \
- && rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.* \
+ && rm -f /etc/apache2/mods-enabled/mpm_* \
  && a2enmod mpm_prefork \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
-# php:*-apache can leave mpm_event + mpm_prefork both enabled → AH00534.
-# a2dismod + explicit prefork (required for mod_php); entrypoint re-checks at boot.
 # mariadb-client = mariadb-dump (~20 MB) — vyžaduje ho cron-backup.php pro
 # denní DB dump (kritická úloha). Per issue #34 bez něj fail out-of-the-box
 # na fresh deployi a uživatel nemá jak ho doinstalovat persistentně.
