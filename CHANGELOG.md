@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.56.1] — 2026-08-20
+
+### Fixed
+
+- **Kontrolní hlášení s dokladem ze třetí země EPO odmítalo.** Přijaté plnění se samovyměřením od dodavatele, který nemá DIČ registrace k DPH v členském státě EU — typicky americká cloudová služba —, se zařazovalo do oddílu A.2, jenže věta A.2 se neobejde bez kódu státu a DIČ dodavatele. XSD u atributu `k_stat` požaduje „kód státu, který přidělil daňové identifikační číslo registrace k DPH dodavatele" s odkazem na tabulku členských států EU; dodavatel bez takové registrace žádné takové číslo nemá, věta odešla s prázdnými atributy a EPO celé podání zamítlo s hláškou, že chybí stát a DIČ. Nově se do A.2 dostane jen dodavatel, u kterého jde platnou větu sestavit, a podání projde. Rozhoduje existence použitelného DIČ registrace k DPH v EU, ne sídlo dodavatele — jinak by stejnou chybou prošel i neplátce se sídlem v EU. Dodavatel ze třetí země odchází z hlášení tiše (je to správný a běžný stav), u dodavatele z EU bez DIČ se ozve varování, protože tam jde skoro vždy o neúplný kontakt, který lze před podáním doplnit. **Přiznání k DPH se nemění**: samovyměřená daň zůstává na ř. 12 a zrcadlový odpočet na ř. 43 ve stejné výši jako dosud, mění se pouze kontrolní hlášení. Kniha DPH nově u takového dokladu tiskne prázdný sloupec KH, shodně se skutečným výstupem. Kontrolní součet `celk_zd_a2` se nově sčítá z reálně odeslaných vět, takže sedí na obsah hlášení; táž oprava se preventivně promítla i do oddílů A.4 a B.2, kde vyřazený řádek mohl zůstat v rekapitulaci.
+
 ## [4.56.0] — 2026-08-20
 
 ### Added
