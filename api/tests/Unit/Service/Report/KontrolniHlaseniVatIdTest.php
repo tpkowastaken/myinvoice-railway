@@ -48,6 +48,34 @@ final class KontrolniHlaseniVatIdTest extends TestCase
         $this->assertSame('', KontrolniHlaseniBuilder::khCountryCode(null));
     }
 
+    /**
+     * Kritérium zařazení do A.2: dodavatel musí mít DIČ REGISTRACE K DPH v členském
+     * státě EU. Nestačí „je z EU" (neplátce VAT ID nemá) ani „má nějaké číslo"
+     * (3. země). Bez obou údajů nejde sestavit platná VetaA2 a EPO podání odmítne.
+     *
+     * @return array<string, array{0:?string,1:bool,2:?string,3:?array{k_stat:string,vatid_dod:string}}>
+     */
+    public static function a2IdentificationProvider(): array
+    {
+        return [
+            // [country ISO2, is EU, raw VAT ID, expected identification|null]
+            'EU plátce'                 => ['IE', true,  'IE3668997OH', ['k_stat' => 'IE', 'vatid_dod' => '3668997OH']],
+            'Řecko → k_stat EL'         => ['GR', true,  'EL123456789', ['k_stat' => 'EL', 'vatid_dod' => '123456789']],
+            '3. země s VAT ID'          => ['US', false, 'US12-3456789', null],
+            '3. země bez VAT ID'        => ['US', false, null, null],
+            'EU neplátce (bez VAT ID)'  => ['DE', true,  null, null],
+            'EU s prázdným VAT ID'      => ['DE', true,  '   ', null],
+            'EU s VAT ID jen prefix'    => ['DE', true,  'DE', null],
+            'neznámá země'              => [null, true,  'DE123456789', null],
+        ];
+    }
+
+    #[DataProvider('a2IdentificationProvider')]
+    public function testA2Identification(?string $iso2, bool $isEu, ?string $vatId, ?array $expected): void
+    {
+        $this->assertSame($expected, KontrolniHlaseniBuilder::a2Identification($iso2, $isEu, $vatId));
+    }
+
     public function testCleanDicStaysNumericForCzech(): void
     {
         // Regrese: české DIČ pořád jen číslice (oddíly A.1/A.4/B.1/B.2).
