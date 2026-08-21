@@ -1,5 +1,7 @@
 # MyInvoice.cz
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/OBD4D1?referralCode=UEjeDc&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PHP 8.5+](https://img.shields.io/badge/PHP-8.5+-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MariaDB 10.6+](https://img.shields.io/badge/MariaDB-10.6+-003545?logo=mariadb&logoColor=white)](https://mariadb.org/)
