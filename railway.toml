@@ -22,6 +22,9 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
+# Railway probes this over HTTP with Host: healthcheck.railway.app and requires
+# a raw 200 (redirects are treated as failure). .htaccess skips HTTPS rewrite
+# for this path/host so the check does not depend on X-Forwarded-Proto.
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

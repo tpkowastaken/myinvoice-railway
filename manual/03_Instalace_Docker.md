@@ -207,7 +207,9 @@ V prohlížeči naskočí setup wizard — viz [6. První spuštění](06_Setup_
 > automaticky funguje. RFC1918 privátní IP (`10.*`, `172.16-31.*`, `192.168.*`),
 > `127.*`, `localhost` a `*.local` jsou vyjmuty z HTTPS redirectu v `.htaccess`
 > a `web.config`. Také požadavek s hlavičkou `X-Forwarded-Proto: https`
-> (reverse proxy s TLS terminací) redirect přeskočí.
+> (reverse proxy s TLS terminací) redirect přeskočí. Stejně tak `/api/health`
+> a Host `healthcheck.railway.app` (PaaS health probe musí dostat HTTP 200,
+> ne 301).
 >
 > ⚠️ Přístup přes LAN IP a plain HTTP je vhodný pro prvotní instalaci, ale
 > **passkeys na něm nejsou podporované**. Pro passkeys použij stabilní hostname,

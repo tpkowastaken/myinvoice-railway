@@ -14,8 +14,12 @@ Options -Indexes -MultiViews
     #    - RFC1918 privátní IP (LAN nasazení bez TLS — typicky self-hosted Docker)
     #    - .local mDNS jména
     #    - requests už HTTPS, nebo terminované TLS na reverse proxy (X-Forwarded-Proto)
+    #    - /api/health (PaaS probe musí dostat 200, ne 301; Railway nesleduje redirect)
+    #    - Host healthcheck.railway.app (Railway interní probe, vždy HTTP)
     RewriteCond %{HTTPS} off
-    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https [NC]
+    RewriteCond %{REQUEST_URI} !^/api/health/?$
+    RewriteCond %{HTTP_HOST} !^healthcheck\.railway\.app(:[0-9]+)?$ [NC]
     RewriteCond %{HTTP_HOST} !^localhost(:[0-9]+)?$ [NC]
     RewriteCond %{HTTP_HOST} !^127\. [NC]
     RewriteCond %{HTTP_HOST} !^10\. [NC]
