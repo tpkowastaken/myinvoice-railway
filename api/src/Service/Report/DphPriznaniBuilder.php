@@ -153,7 +153,7 @@ final class DphPriznaniBuilder
             $vetaD->setAttribute('c_okec', $okec);
         }
         $vetaD->setAttribute('d_poddp', date('d.m.Y')); // datum podání (dnes)
-        // trans: A = vznikla daňová povinnost (vlastní daň > 0), N = nevznikla.
+        // trans: „existují údaje pro oddíl C?" — spočteme níže, až budou Vety sestavené.
         // Spočteme níže po sestavení Veta6 a setneme přes setAttribute.
         $dphdp3->appendChild($vetaD);
 
@@ -339,9 +339,24 @@ final class DphPriznaniBuilder
         $vetaR->setAttribute('poradi', '1');
         $dphdp3->appendChild($vetaR);
 
-        // trans: A = vznikla daňová povinnost (kladná vlastní daň), N = nevznikla
-        // (nadměrný odpočet / nulový rozdíl). Setneme až teď, kdy máme spočítáno.
-        $vetaD->setAttribute('trans', $vlastniDan > 0 ? 'A' : 'N');
+        // ⚠️ `trans` NENÍ znaménko daně, ale zaškrtávátko „Neexistují-li údaje
+        // pro C. oddíl". EPO podle něj oddíl C buď vykreslí, nebo PŘEŠKRTNE —
+        // a přeškrtnutý oddíl obsahovou kontrolou neprojde:
+        //
+        //   CHYBA 36 — JE ZAŠKRTNUTO, ŽE NEEXISTUJÍ ÚDAJE PRO C. ODDÍL,
+        //   NESMÍ BÝT VYPLNĚNY ÚDAJE V ODDÍLE C.
+        //
+        // Dokud se odvozovalo jen ze znaménka vlastní daně, dostalo přiznání
+        // složené výhradně ze samovyměření (daň na výstupu i zrcadlový odpočet
+        // ve stejné výši, ř. 64 = 0) hodnotu `N` — a bylo bez ručního zásahu
+        // nepodatelné, přestože Veta1 i Veta4 byly vyplněné správně. Totéž
+        // hrozilo u nadměrného odpočtu.
+        //
+        // Proto: máme-li v oddílu C cokoliv vyplněné, `trans` je `A`. `N`
+        // zůstává pro období, ve kterém se opravdu nic nestalo.
+        $sectionCHasData = !empty($veta1Attrs) || !empty($veta2Attrs) || !empty($veta3Attrs)
+            || !empty($veta4Attrs) || !empty($veta5Attrs);
+        $vetaD->setAttribute('trans', ($vlastniDan > 0 || $sectionCHasData) ? 'A' : 'N');
 
         // Termín podání: 25. den následujícího měsíce po skončení období
         $deadlineMonth = $quarter !== null ? ($quarter * 3 + 1) : ($month + 1);

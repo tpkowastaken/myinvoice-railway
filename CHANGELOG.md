@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.56.4] — 2026-09-04
+
+### Fixed
+
+- **Kontrolní hlášení vynechávalo oddíl A.2 u dodavatele bez EU DIČ.** Přijaté plnění se samovyměřením od dodavatele, který nemá DIČ registrace k DPH v členském státě EU (třetí země, ale i neplátce se sídlem v EU), se z oddílu A.2 vyřazovalo, jenže řádek 12 (případně 5) přiznání zůstal naplněný. Křížová kontrola kontrolního součtu `celk_zd_a2` proti řádkům 3, 4, 5, 6, 9, 12 a 13 přiznání s tolerancí ±1000 Kč se proto rozešla přesně o objem těch plnění, u firmy s pravidelnými zahraničními službami každý měsíc. Odůvodnění opravy z 4.56.1 neobstálo: dokumentace atributu `vatid_dod` v `dphkh1.xsd` ten případ jmenuje doslova, u dodavatele bez VAT ID včetně „identifikace zahraniční osoby povinné k dani" zůstává pole „Identifikace dodavatele" prázdné, a obě položky (`k_stat` i `vatid_dod`) jsou v XSD `use="optional"` s `minLength="0"`. Původní analýza četla jen anotaci u `k_stat` a tuhle větu minula. Ověřeno zkušebním podáním na testovací podatelně EPO, podepsaným kvalifikovaným certifikátem: na řádek bez identifikace vrátí EPO dvě zprávy typu `P`, tedy propustné, „Kód státu dodavatele by měl být vyplněn" a „Identifikace dodavatele (VAT ID) by měla být vyplněna", a podání jako celek projde. Odpovídá to chybám č. 58 a č. 60, které GFŘ výslovně označuje za propustné; tvrzení z 4.56.1, že EPO takové podání zamítne, tedy neplatí. Nově řádek do A.2 jde s prázdnou identifikací. Kritériem už není sídlo dodavatele, ale existence DIČ registrace k DPH: osoba se sídlem ve třetí zemi registrovaná v některém členském státě identifikaci má a kód státu se odvodí z prefixu jejího VAT ID, zatímco číslo, které EU VAT ID není (OSS mimo Unii, domácí identifikátor třetí země, britské DIČ po Brexitu), se do `vatid_dod` nedostane. U dodavatele se sídlem v EU bez VAT ID náhled varuje, protože tam jde skoro vždy o neúplný kontakt. **Přiznání k DPH se nemění**: řídí se zařazením dokladu na řádek, ne sekcí kontrolního hlášení, takže samovyměření i zrcadlový odpočet zůstávají ve stejné výši a mění se výhradně kontrolní hlášení. Kniha DPH u takového dokladu nově tiskne ve sloupci „KH" sekci A.2 (ve 4.56.1 tiskla prázdno). (Ruší opravu z 4.56.1.)
+
+## [4.56.3] — 2026-08-27
+
+### Fixed
+
+- **Přiznání k DPH složené ze samovyměření bylo nepodatelné.** Atribut `VetaD/@trans` se odvozoval ze znaménka vlastní daně, takže přiznání, ve kterém se daň na výstupu a zrcadlový odpočet vyruší (ř. 64 = 0) — typicky jediná přijatá faktura v režimu reverse charge —, dostalo `trans="N"`. EPO ale podle toho atributu **přeškrtne celý oddíl C**: sekce I.–VI. se vykreslí jako „v období nedošlo k žádnému zdanitelnému plnění" a obsahová kontrola podání shodí hláškou „JE ZAŠKRTNUTO, ŽE NEEXISTUJÍ ÚDAJE PRO C. ODDÍL, NESMÍ BÝT VYPLNĚNY ÚDAJE V ODDÍLE C." Vyplnil se jen ř. 63, takže formulář navíc vykazoval nadměrný odpočet místo nulové daňové povinnosti a soubor byl bez ručního zásahu nepodatelný, přestože `Veta1` i `Veta4` byly v pořádku. Totéž hrozilo u každého nadměrného odpočtu. `trans` je ve skutečnosti zaškrtávátko „Neexistují-li údaje pro C. oddíl", ne znaménko daně — nově je `A`, kdykoli je v oddílu C cokoliv vyplněné, a `N` zůstává pro období, ve kterém se opravdu nic nestalo. (#273, díky @TOPOSV)
+- **Manuál mapoval zrcadlový odpočet na špatný řádek.** Příklad reverse charge v kapitole *Výkazy DPH* uváděl ř. 43 jako `odp_rezim`/`odp_rez_nar`, jenže ta dvojice patří na **ř. 45** (korekce odpočtu podle § 75, § 77 a § 79 — registrace, vyrovnání); zrcadlový odpočet ze samovyměření nese `nar_zdp23`/`od_zdp23`. Protože tatáž kapitola doporučuje před podáním XML zkontrolovat a případně ručně upravit, vedl by ten příklad k vykázání korekce odpočtu místo odpočtu ze samovyměření. Opraveno i tvrzení, že builder převádí město na velká písmena — `naz_obce` se posílá beze změny a normalizuje si ho EPO samo. (#274, díky @TOPOSV)
+
+## [4.56.2] — 2026-08-25
+
+### Fixed
+
+- **Novější avíza Fio banky se importují.** Fio rozesílá dva různé tvary e-mailového avíza a vestavěný parser uměl jen ten starší, řádkový („Příjem/Výdaj na kontě: … / Částka: … / VS: … / Protiúčet: …"), navíc vázaný na předmět „Fio banka - prijem/vydaj na konte". Novější prozaická varianta — typicky okamžitá platba z aktuálních aplikací Fio — nese směr, datum, částku i měnu ve větě „zůstatek účtu … se … zvýšil o … CZK" a zbytek má v bloku **Další parametry**; neprošla tedy ani detekcí, ani vytěžením a import skončil hláškou o nenalezeném parseru. Nově parser zvládá oba tvary: nový se pozná podle úvodní věty (ne podle předmětu, ten se u něj liší), „zvýšil" znamená příjem a „snížil" výdaj se záporným znaménkem, z bloku parametrů se berou Protistrana včetně názvu v závorce, variabilní i konstantní symbol, Zpráva pro příjemce (s fallbackem na Zprávu pro mě a Uživatelský symbol), ID pokynu jako reference banky a Aktuální zůstatek. Cílový účet je i tady bez kódu banky, doplní se `/2010`. Kontrola odesílatele na doménu fio.cz zůstává v platnosti. (#271, díky @TOPOSV)
+
 ## [4.56.1] — 2026-08-20
 
 ### Fixed
