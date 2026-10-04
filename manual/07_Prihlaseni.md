@@ -43,7 +43,10 @@ biometrická data nikdy nedostane.
 Má-li účet současně aktivní TOTP, můžeš místo passkey zvolit
 **Použít kód z autentikátoru** po standardním přihlášení e-mailem a heslem a
 zadat aktuální šestimístný kód. Zrušení systémového dialogu passkey TOTP samo
-nespustí.
+nespustí. Po zadání šesté číslice nebo vložení celého šestimístného kódu se
+přihlášení odešle automaticky, bez Enteru. Pokud ještě probíhá CAPTCHA,
+odeslání počká na její dokončení. Tlačítko **Přihlásit** zůstává dostupné
+pro ruční odeslání.
 
 MyInvoice nepoužívá záložní jednorázové recovery kódy. Obnova přístupu probíhá
 jinou passkey, TOTP nebo administrátorským CLI rescue. Podrobnosti jsou v

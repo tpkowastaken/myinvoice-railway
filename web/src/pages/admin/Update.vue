@@ -318,7 +318,6 @@ function fmtDate(s?: string | null): string {
           <div class="min-w-0">
             <h2 class="text-lg font-semibold text-neutral-900">{{ t('updates.myucto_promo_title') }}</h2>
             <p class="text-sm text-neutral-700 mt-1.5">{{ t('updates.myucto_promo_text') }}</p>
-            <p class="text-xs text-neutral-600 mt-2">{{ t('updates.myucto_promo_free') }}</p>
           </div>
           <span class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white">
             <span>{{ t('updates.myucto_promo_cta') }}</span>

@@ -96,6 +96,26 @@ Tabulka transakcí:
 | Stav | `Spárováno` (zelená) / `Bez shody` (šedá) / `Ignorováno` (oranž.) |
 | Faktura | Pokud spárováno, číslo faktury (klikatelné) |
 
+Tlačítko s **ikonou oka** na konci akcí řádku otevře detail transakce: částku, stav párování, datum, protistranu,
+vlastní účet i účet protistrany, platební symboly, bankovní referenci a dostupný
+zůstatek, pokud je banka poskytla. Nechybí odkazy na spárované faktury, celý
+popis z banky a případná poznámka k ignorování. Detail lze otevřít i u pohybu
+bez popisu. Funguje také na mobilu; delší text se zalamuje.
+
+Přímo v detailu jsou podle stavu transakce dostupné akce **Vytvořit fakturu**
+(pro nespárovanou odchozí platbu), **Spárovat**, **Ignorovat**, **Zrušit spárování**
+a **Zrušit ignorování**. Akce otevře příslušný formulář nebo potvrzovací dialog
+pro právě prohlíženou transakci. Zrušení nebo zavření této akce bez dokončení
+vrátí původní detail transakce. Po úspěšném dokončení se detail znovu neotevírá.
+Dostupnost odpovídá akcím v seznamu; uživatel
+bez oprávnění k zápisu vidí pouze údaje a odkazy na doklady.
+
+Odchozí platby se u přijatých faktur párují podle **platebního variabilního
+symbolu**, interního čísla nebo čísla dokladu dodavatele. Při porovnání se
+zohledňují také úvodní nuly a oddělovače v číslech dokladů. Očekávaná částka
+zahrnuje **zaokrouhlení dokladu** a odečítá již uhrazené zálohy; stejně se
+počítá i při hledání podle názvu protistrany nebo částky a data.
+
 ### 24.4.1 Částečné platby (více převodů na jednu fakturu)
 
 Příchozí platba se **shodným variabilním symbolem**, ale nižší částkou než
@@ -159,13 +179,47 @@ faktury celé; není to rozpouštění jedné platby na částečné úhrady). Z
 spárování (§ 24.5) smaže **všechny** platby té transakce a vrátí všechny faktury
 zpět mezi pohledávky. Activity log: `bank.tx_manual_match_split`.
 
+### Přenos ignorování z e-mailových avíz
+
+Při ručním importu GPC/ABO nebo PDF výpisu aplikace před párováním nabídne
+převzetí ignorování ze shodných ručně ignorovaných avíz. Pomocí **Vybrat vše** lze označit všechny nabídnuté shody nebo jejich výběr zrušit. Vyber konkrétní
+pohyby a potvrď **Přenést vybrané a importovat**. Přenese se i poznámka;
+částky a zůstatky výpisu se nemění. Avízo zůstane ignorované.
+
+**Importovat bez přenosu** pokračuje běžným párováním. **Zrušit** nebo zavření
+dialogu soubor neimportuje. Pokud se avízo mezitím změní, výběr je potřeba
+znovu potvrdit. Souhrn oznámí počet převzatých ignorování samostatně od párování.
+
+Nabízejí se jen jednoznačné dvojice stejné firmy, účtu, banky, měny a částky
+včetně znaménka, s datem nejvýše o pět dní odlišným. Identitu musí podpořit
+shodný VS nebo protiúčet. Karetní platby bez obou údajů, nejednoznačné dvojice,
+systémově ignorovaná avíza a avíza s vazbou na úhradu se nepřenášejí.
+U starších ignorování musí být ruční rozhodnutí doloženo auditním záznamem.
+
+Jedno avízo se použije nejvýše jednou, i když později zrušíš ignorování nebo
+smažeš importovaný výpis. Automatické skenování adresáře ignorování nepřenáší.
+
 ### 24.4.3 Ignorovat transakci
 
 Pro transakce, které nejsou platby faktur (poplatky, převody mezi vlastními
 účty, refundace, …):
 
 1. Klik **Ignorovat**.
-2. Status → `Ignorováno`. Pro reporting se nepočítá.
+2. V potvrzovacím dialogu můžeš doplnit vlastní poznámku (nejvýše 1000 znaků).
+3. Potvrď **Ignorovat**. Stav a poznámka se aktualizují přímo v seznamu bez
+   opětovného načtení stránky; nastavený filtr zůstává zachovaný. Při filtru
+   **Bez shody** transakce ze seznamu zmizí.
+
+Poznámka je uložená u transakce a zobrazuje se u ignorovaného pohybu i při
+příštím otevření výpisu, v tabulce i na mobilu. Zrušení dialogu nic nemění.
+
+Akce **Zrušit spárování**, u ignorovaného pohybu **Zrušit ignorování**, otevře
+potvrzovací dialog s datem, částkou a protistranou. Zrušení ignorování vrátí
+pohyb mezi pohyby bez shody.
+Pokud má pohyb poznámku k ignorování, dialog ji zobrazí a upozorní na její
+odstranění. Po potvrzení se poznámka smaže; zrušení dialogu ji zachová.
+Po potvrzení se řádek a počet spárovaných transakcí aktualizují bez reloadu;
+filtr zůstává zachovaný. Případná chyba se zobrazí přímo v dialogu.
 
 ### 24.4.4 Vytvoření přijaté faktury z výpisu (doklad o úhradě)
 

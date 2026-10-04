@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MyInvoice\Repository;
 
 use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Service\Invoice\OverduePolicy;
 use MyInvoice\Service\Invoice\CzkRecap;
 use PDO;
 
@@ -17,7 +18,10 @@ use PDO;
  */
 final class InvoiceRepository
 {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(
+        private readonly Connection $db,
+        private readonly OverduePolicy $overduePolicy,
+    ) {}
 
     /**
      * Cache existence sloupce income_tax_exempt (migrace 0087). Instalace nasazená
@@ -229,6 +233,13 @@ final class InvoiceRepository
         $this->db->pdo()->prepare(
             'UPDATE invoices SET exchange_rate = ?, exchange_rate_date = ? WHERE id = ?'
         )->execute([$rate, $rateDate, $invoiceId]);
+    }
+
+    /** Zaokrouhlení dokladu (#258) — InvoiceCalculator ho při přepočtu zachovává. */
+    public function setRounding(int $invoiceId, float $rounding): void
+    {
+        $this->db->pdo()->prepare('UPDATE invoices SET rounding = ? WHERE id = ?')
+            ->execute([round($rounding, 2), $invoiceId]);
     }
 
     // ── Propojení zálohové faktury (proforma) s vyúčtovacím daňovým dokladem ──
@@ -571,7 +582,8 @@ final class InvoiceRepository
             $where[] = "(i.invoice_type NOT IN ('invoice','proforma','tax_document') OR i.amount_to_pay - i.paid_total > 0)";
         }
         if (!empty($filters['overdue'])) {
-            $where[] = "i.status IN ('issued','sent','reminded') AND i.due_date <= CURDATE()";
+            $operator = $this->overduePolicy->comparisonOperator();
+            $where[] = "i.status IN ('issued','sent','reminded') AND i.due_date {$operator} CURDATE()";
             // Stejná pohledávková sémantika jako unpaid (vč. nespárovaných proforem).
             $where[] = "(i.invoice_type != 'proforma'"
                 . " OR NOT EXISTS (SELECT 1 FROM invoices ch"

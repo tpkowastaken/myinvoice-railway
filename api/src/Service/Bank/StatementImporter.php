@@ -33,12 +33,13 @@ final class StatementImporter
      *   čísla účtu; tady už jen načteme code/bank_code. NULL = dnešní chování
      *   (lookup podle account_number — folder scan, jednoznačný účet).
      *
-     * @return array{statement_id:int, transactions:int, matched:int, duplicate:bool}
+     * @param ?array $ignoreDecision NULL = bez přenosu (scan), [] = náhled pro interaktivní upload.
+     * @return array{statement_id:int, transactions:int, matched:int, duplicate:bool, ignored_transferred:int}
      */
-    public function import(string $content, string $fileName, ?int $userId, ?int $currencyId = null): array
+    public function import(string $content, string $fileName, ?int $userId, ?int $currencyId = null, ?array $ignoreDecision = null): array
     {
         $parsed = $this->parser->parse($content);
-        return $this->persist($parsed, $content, $fileName, $userId, $currencyId, 'gpc');
+        return $this->persist($parsed, $content, $fileName, $userId, $currencyId, 'gpc', $ignoreDecision);
     }
 
     /**
@@ -49,9 +50,9 @@ final class StatementImporter
      *
      * @param array{header:array,transactions:list<array>} $parsed
      */
-    public function importParsedPdf(array $parsed, string $pdfBytes, string $fileName, ?int $userId, ?int $currencyId = null): array
+    public function importParsedPdf(array $parsed, string $pdfBytes, string $fileName, ?int $userId, ?int $currencyId = null, ?array $ignoreDecision = null): array
     {
-        return $this->persist($parsed, $pdfBytes, $fileName, $userId, $currencyId, 'pdf');
+        return $this->persist($parsed, $pdfBytes, $fileName, $userId, $currencyId, 'pdf', $ignoreDecision);
     }
 
     /**
@@ -59,17 +60,53 @@ final class StatementImporter
      * @param string $rawBytes Originální bajty souboru — hashují se pro dedup a ukládají
      *   se buď do file_content (source='gpc') nebo pdf_content (source='pdf').
      */
-    private function persist(array $parsed, string $rawBytes, string $fileName, ?int $userId, ?int $currencyId, string $source): array
+    private function persist(array $parsed, string $rawBytes, string $fileName, ?int $userId, ?int $currencyId, string $source, ?array $ignoreDecision = null): array
+    {
+        $pdo = $this->db->pdo();
+        $owns = !$pdo->inTransaction();
+        if ($owns) $pdo->beginTransaction();
+        try {
+            $result = $this->persistRows($parsed, $rawBytes, $fileName, $userId, $currencyId, $source, $ignoreDecision);
+            if ($owns) $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($owns && $pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+        }
+        // Párování spravuje vlastní transakce; potvrzené ignorování už je atomicky uloženo.
+        $matched = 0;
+        foreach ($result['pending_ids'] ?? [] as $txId) {
+            $takeover = $this->reconciler->takeOverFromEmailNotice($txId);
+            if ($takeover !== null) { $matched++; continue; }
+            $r = $this->matcher->match($txId);
+            if (in_array($r['status'], ['auto_exact', 'auto_partial'], true)) $matched++;
+        }
+        unset($result['pending_ids']);
+        if (!$result['duplicate']) {
+            $pdo->prepare('UPDATE bank_statements SET matched_count = ? WHERE id = ?')->execute([$matched, $result['statement_id']]);
+            $result['matched'] = $matched;
+        }
+        return $result;
+    }
+
+    private function persistRows(array $parsed, string $rawBytes, string $fileName, ?int $userId, ?int $currencyId, string $source, ?array $ignoreDecision): array
     {
         $hash = hash('sha256', $rawBytes);
         $pdo = $this->db->pdo();
+
+        $transfer = new IgnoreNoticeTransfer($this->db);
+        $transferAccount = null;
+        if ($ignoreDecision !== null && $currencyId !== null) {
+            $lock = $pdo->prepare('SELECT * FROM currencies WHERE id = ? FOR UPDATE');
+            $lock->execute([$currencyId]);
+            $transferAccount = $lock->fetch(PDO::FETCH_ASSOC) ?: null;
+        }
 
         // Dedupe
         $exists = $pdo->prepare('SELECT id FROM bank_statements WHERE file_hash = ?');
         $exists->execute([$hash]);
         $existingId = $exists->fetchColumn();
         if ($existingId !== false) {
-            return ['statement_id' => (int) $existingId, 'transactions' => 0, 'matched' => 0, 'duplicate' => true];
+            return ['statement_id' => (int) $existingId, 'transactions' => 0, 'matched' => 0, 'duplicate' => true, 'ignored_transferred' => 0];
         }
 
         $h = $parsed['header'];
@@ -98,6 +135,10 @@ final class StatementImporter
         $accountBankCode = $account['bank_code'] ?? null;
         $statementCurrency = $accountCurrency
             ?? $this->detectStatementCurrency($parsed['transactions']);
+
+        $selectedIgnores = $transferAccount !== null
+            ? $transfer->select($parsed['transactions'], $transferAccount, $hash, $ignoreDecision)
+            : [];
 
         // GPC: raw bajty jdou do file_content (zpětně stažitelný originál). PDF: do
         // pdf_content (existující sloupce z migrace 0052 — „Stáhnout PDF" tak funguje
@@ -133,8 +174,8 @@ final class StatementImporter
              VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
         );
 
-        $matched = 0;
-        foreach ($parsed['transactions'] as $tx) {
+        $pendingIds = [];
+        foreach ($parsed['transactions'] as $index => $tx) {
             // Měna registrovaného účtu přebíjí i per-tx pole (#109): výpis je
             // jednoměnový a Fio do 075 píše konstantně CZK i u EUR účtu — per-tx
             // hodnota by rozbila currency guard v matcheru. Per-tx kód se použije
@@ -149,28 +190,19 @@ final class StatementImporter
             ]);
             $txId = (int) $pdo->lastInsertId();
 
-            // Cross-source dedup: pokud tato platba už dorazila e-mailovým avízem a je
-            // spárovaná, převezmi párování (i manuální/split) na oficiální GPC transakci
-            // místo dvojího párování (jinak falešný přeplatek). GPC = zdroj pravdy.
-            $takeover = $this->reconciler->takeOverFromEmailNotice($txId);
-            if ($takeover !== null) {
-                $matched++;
-                continue;
-            }
-
-            $r = $this->matcher->match($txId);
-            if (in_array($r['status'], ['auto_exact', 'auto_partial'], true)) {
-                $matched++;
+            if (isset($selectedIgnores[$index])) {
+                $transfer->apply($txId, $selectedIgnores[$index], (int) $transferAccount['supplier_id'], $userId);
+            } else {
+                $pendingIds[] = $txId;
             }
         }
-
-        $pdo->prepare('UPDATE bank_statements SET matched_count = ? WHERE id = ?')
-            ->execute([$matched, $statementId]);
 
         return [
             'statement_id' => $statementId,
             'transactions' => count($parsed['transactions']),
-            'matched'      => $matched,
+            'matched'      => 0,
+            'ignored_transferred' => count($selectedIgnores),
+            'pending_ids' => $pendingIds,
             'duplicate'    => false,
         ];
     }

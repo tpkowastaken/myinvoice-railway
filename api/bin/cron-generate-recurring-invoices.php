@@ -129,7 +129,7 @@ foreach ($candidates as $t) {
             // následující den (next_run_date < dnes). Datum vystavení i DUZP konceptu
             // přitom zůstávají na next_run_date (konec období) — viz openDraft/issuePeriod.
             // Otevři koncept (idempotentní), ať má uživatel kam psát vícepráce.
-            $r = $generator->openDraft($tplId, null, '', $ua);
+            $r = $generator->openDraft($tplId, null, '', $ua, $nextRun);
             if ($r['created']) {
                 $report['opened']++;
                 printf("  ⊕ #%d \"%s\" → koncept #%d otevřen (vystavení: %s)\n",
@@ -139,7 +139,7 @@ foreach ($candidates as $t) {
         } elseif ($mode === 'period_start') {
             // ISSUE fáze pro period_start — den po konci období (next_run_date < dnes).
             // Uzavři otevřený koncept a vystav (issue_date/DUZP zůstávají na next_run_date).
-            $r = $generator->issuePeriod($tplId, null, '', $ua);
+            $r = $generator->issuePeriod($tplId, null, '', $ua, $nextRun);
             $report['generated']++;
             if ($r['issued']) $report['issued']++;
             if (!empty($r['sent_to'])) $report['sent']++;
@@ -161,7 +161,7 @@ foreach ($candidates as $t) {
                 && $newNext !== null
                 && RecurringInvoiceGenerator::draftOpenDate($newNext) <= $today
             ) {
-                $open = $generator->openDraft($tplId, null, '', $ua);
+                $open = $generator->openDraft($tplId, null, '', $ua, $newNext);
                 if ($open['created']) {
                     $report['opened']++;
                     printf("  ⊕ #%d \"%s\" → koncept #%d otevřen (vystavení: %s)\n",
@@ -170,7 +170,7 @@ foreach ($candidates as $t) {
             }
         } else {
             // Legacy at_issue — open+issue v jednom kroku (původní chování).
-            $r = $generator->generate($tplId, null, null, '', $ua);
+            $r = $generator->generate($tplId, null, null, '', $ua, expectedNextRunDate: $nextRun);
             $report['generated']++;
             if ($r['issued']) $report['issued']++;
             if (!empty($r['sent_to'])) $report['sent']++;
@@ -183,6 +183,8 @@ foreach ($candidates as $t) {
         }
         // Úspěch → vyčisti případnou starou chybu (banner na šabloně zmizí).
         $repo->clearLastError($tplId);
+    } catch (\MyInvoice\Service\Invoice\RecurringScheduleChangedException) {
+        continue;
     } catch (\Throwable $e) {
         $report['errors']++;
         // Zaznamenej chybu na šablonu → uživatel ji uvidí jako banner na detailu/seznamu.

@@ -102,6 +102,20 @@ final class BankStatementAction
         return $root !== '' && is_dir($root);
     }
 
+    private function ignoreDecision(Request $request): array
+    {
+        $raw = ((array) $request->getParsedBody())['ignore_decision'] ?? null;
+        if ($raw === null) return [];
+        if (!is_string($raw)) throw new \InvalidArgumentException('Neplatné potvrzení ignorování.');
+        $decision = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
+        if (!is_array($decision)) throw new \InvalidArgumentException('Neplatné potvrzení ignorování.');
+        if (($decision['skip'] ?? false) === true) return ['skip' => true];
+        if (!is_string($decision['fingerprint'] ?? null) || !is_array($decision['selected'] ?? null)) {
+            throw new \InvalidArgumentException('Neplatné potvrzení ignorování.');
+        }
+        return $decision;
+    }
+
     public function upload(Request $request, Response $response): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
@@ -164,7 +178,9 @@ final class BankStatementAction
         }
 
         try {
-            $r = $this->importer->import($content, $name, (int) ($user['id'] ?? 0), $resolved['currency_id']);
+            $r = $this->importer->import($content, $name, (int) ($user['id'] ?? 0), $resolved['currency_id'], $this->ignoreDecision($request));
+        } catch (\MyInvoice\Service\Bank\IgnoreNoticeConfirmationRequired $e) {
+            return Json::error($response, 'ignored_notices_confirmation', $e->getMessage(), 409, $e->preview);
         } catch (\Throwable $e) {
             return Json::error($response, 'parse_failed', 'Nelze parsovat: ' . $e->getMessage(), 400);
         }
@@ -228,7 +244,9 @@ final class BankStatementAction
         }
 
         try {
-            $r = $this->importer->importParsedPdf($parsed, $pdfBytes, $name, (int) ($user['id'] ?? 0), $resolved['currency_id']);
+            $r = $this->importer->importParsedPdf($parsed, $pdfBytes, $name, (int) ($user['id'] ?? 0), $resolved['currency_id'], $this->ignoreDecision($request));
+        } catch (\MyInvoice\Service\Bank\IgnoreNoticeConfirmationRequired $e) {
+            return Json::error($response, 'ignored_notices_confirmation', $e->getMessage(), 409, $e->preview);
         } catch (\Throwable $e) {
             return Json::error($response, 'parse_failed', 'Nelze parsovat: ' . $e->getMessage(), 400);
         }
@@ -2657,6 +2675,8 @@ final class BankStatementAction
                 "UPDATE bank_transactions
                     SET matched_invoice_id = NULL,
                         match_status       = 'unmatched',
+                        ignore_note        = NULL,
+                        ignore_origin      = NULL,
                         matched_at         = NULL,
                         matched_by         = NULL
                   WHERE id = ?"
@@ -2738,6 +2758,14 @@ final class BankStatementAction
             return Json::error($response, 'not_found', 'Transakce nenalezena.', 404);
         }
 
+        $body = (array) $request->getParsedBody();
+        $note = $body['note'] ?? null;
+        if ($note !== null && (!is_string($note) || mb_strlen($note) > 1000)) {
+            return Json::error($response, 'validation_error', 'Poznámka musí být text o nejvýše 1000 znacích.', 422);
+        }
+        $note = $note !== null ? trim($note) : null;
+        $note = $note === '' ? null : $note;
+
         $pdo = $this->db->pdo();
         // Načti previous state pro audit log (před UPDATE)
         $prev = $pdo->prepare(
@@ -2749,7 +2777,7 @@ final class BankStatementAction
         $previousStatus = (string) ($prevRow['match_status'] ?? '');
         $previousInvoiceId = $prevRow['matched_invoice_id'] !== null ? (int) $prevRow['matched_invoice_id'] : null;
 
-        $pdo->prepare("UPDATE bank_transactions SET match_status = 'ignored' WHERE id = ?")->execute([$txId]);
+        $pdo->prepare("UPDATE bank_transactions SET match_status = 'ignored', ignore_origin = 'manual', ignore_note = ? WHERE id = ?")->execute([$note, $txId]);
 
         // Pokud byla transakce dříve matched (auto/manual), recompute count na výpisu
         if ($statementId > 0) {
@@ -2768,11 +2796,12 @@ final class BankStatementAction
         $userId = (int) (((array) $request->getAttribute(AuthMiddleware::ATTR_USER, []))['id'] ?? 0);
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $this->logger->log('bank.tx_ignore', $userId ?: null, 'bank_transaction', $txId, [
+            'note'                => $note,
             'previous_status'     => $previousStatus,
             'previous_invoice_id' => $previousInvoiceId,
         ], $ip, $request->getHeaderLine('User-Agent'));
 
-        return Json::ok($response, ['ignored' => true]);
+        return Json::ok($response, ['ignored' => true, 'ignore_note' => $note]);
     }
 
     /**

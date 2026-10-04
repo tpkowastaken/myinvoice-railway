@@ -1,0 +1,7 @@
+[
+  {"amount": -101, "vs": "910001", "name": "TEST ALFA", "note": "Testovaci poplatek ALFA", "account": "1000000005"},
+  {"amount": -202, "vs": "910002", "name": "TEST BETA", "note": "Testovaci poplatek BETA", "account": "1000000005"},
+  {"amount": -303, "vs": "910003", "name": "TEST DUPLICITA A", "note": "Nejednoznacne avizo A", "account": "1000000005"},
+  {"amount": -303, "vs": "910003", "name": "TEST DUPLICITA B", "note": "Nejednoznacne avizo B", "account": "1000000005"},
+  {"amount": -404, "vs": null, "name": "TEST KARTA", "note": "Karta bez identifikatoru", "account": null}
+]

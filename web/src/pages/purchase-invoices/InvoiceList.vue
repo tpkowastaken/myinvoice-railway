@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isInvoiceDateOverdue } from '@/utils/invoiceOverdue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -266,7 +267,7 @@ const loadedCount = computed(() =>
 
 const isOverdue = (dueDate: string, status: PurchaseInvoiceStatus): boolean => {
   if (status !== 'received' && status !== 'booked') return false
-  return new Date(dueDate) < new Date(new Date().toISOString().slice(0, 10))
+  return isInvoiceDateOverdue(dueDate)
 }
 
 // Status badge ve stejných tokenech jako Detail (sjednoceno s vystavenou)

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { overdueDays } from '@/utils/date'
 import LinkedDocumentsPanel from '@/components/documents/LinkedDocumentsPanel.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
@@ -1098,19 +1099,12 @@ const canSendReminder = computed(() => {
   if (!['issued', 'sent', 'reminded'].includes(invoice.value.status)) return false
   if ((invoice.value.payment_method ?? 'bank_transfer') !== 'bank_transfer') return false
   if (Number(invoice.value.amount_to_pay ?? 0) <= 0) return false
-  const due = new Date(invoice.value.due_date)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return due < today
+  return overdueDays(invoice.value.due_date) > 0
 })
 
 const daysOverdue = computed(() => {
   if (!invoice.value) return 0
-  const due = new Date(invoice.value.due_date)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  due.setHours(0, 0, 0, 0)
-  return Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86_400_000))
+  return overdueDays(invoice.value.due_date)
 })
 
 // #86 — příjemci upomínky z resolveru (kontakty s účelem `reminders`, fallback documents/main).
@@ -1854,9 +1848,13 @@ const invoiceActions = computed<ActionItem[]>(() => {
             <dt>{{ t('invoice.totals.vat_total') }}</dt>
             <dd class="font-mono">{{ formatMoney(invoice.totals.vat, invoice.currency) }}</dd>
           </div>
+          <div v-if="Number(invoice.totals.rounding || 0) !== 0" class="flex justify-between text-neutral-600">
+            <dt>{{ t('invoice.totals.rounding') }}</dt>
+            <dd class="font-mono">{{ formatMoney(Number(invoice.totals.rounding), invoice.currency) }}</dd>
+          </div>
           <div class="flex justify-between border-t border-neutral-300 pt-2 mt-2 text-lg font-semibold text-primary-700">
             <dt>{{ t('invoice.totals.total') }}</dt>
-            <dd class="font-mono">{{ formatMoney(invoice.totals.with_vat, invoice.currency) }}</dd>
+            <dd class="font-mono">{{ formatMoney(Number(invoice.totals.with_vat) + Number(invoice.totals.rounding || 0), invoice.currency) }}</dd>
           </div>
           <div v-if="invoice.advance_paid_amount > 0" class="flex justify-between text-sm text-neutral-600 pt-2">
             <dt>{{ t('invoice.totals.advance_deduction') }}</dt>

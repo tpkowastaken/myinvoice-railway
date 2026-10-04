@@ -40,6 +40,8 @@ export interface SupplierBrief {
 export interface SetupStatus {
   needs_setup: boolean
   version: string
+  overdue_includes_today?: boolean
+  timezone?: string
   passwordless_login_enabled: boolean
   captcha: {
     provider: 'turnstile' | 'none'

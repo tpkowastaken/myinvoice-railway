@@ -282,11 +282,6 @@ function stepLabel(step: string): string {
         <h2 class="text-lg font-semibold text-neutral-900">{{ t('myucto_upgrade.about_title') }}</h2>
         <p class="text-sm text-neutral-700 mt-1.5">{{ t('myucto_upgrade.about_intro') }}</p>
 
-        <div class="mt-4 rounded-md border border-success-500/40 bg-success-50 px-4 py-3">
-          <div class="text-sm font-semibold text-success-800">{{ t('myucto_upgrade.free_title') }}</div>
-          <p class="text-sm text-success-800/90 mt-0.5">{{ t('myucto_upgrade.free_text') }}</p>
-        </div>
-
         <h3 class="text-sm font-semibold text-neutral-800 mt-5">{{ t('myucto_upgrade.benefits_title') }}</h3>
         <ul class="mt-2 grid gap-1.5 sm:grid-cols-2">
           <li v-for="b in benefits" :key="b" class="flex gap-2 text-sm text-neutral-700">

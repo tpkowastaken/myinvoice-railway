@@ -58,6 +58,7 @@ export interface BankTransaction {
   matched_vendor_name?: string | null
   /** Seznam vystavených faktur uhrazených touto transakcí (sloučená úhrada → víc než 1). */
   matched_invoices?: MatchedInvoice[]
+  ignore_note?: string | null
   match_status: MatchStatus
   matched_at: string | null
 }
@@ -121,7 +122,27 @@ export interface BankStatementDetail extends BankStatement {
   transactions: BankTransaction[]
 }
 
+export interface IgnoreNoticeCandidate {
+  index: number
+  notice_id: number
+  posted_at: string
+  notice_date: string
+  amount: number
+  currency: string
+  variable_symbol: string | null
+  counterparty: string | null
+  counterparty_account: string
+  reason: 'variable_symbol' | 'counterparty_account'
+  ignore_note: string | null
+}
+export interface IgnoreNoticePreview {
+  fingerprint: string
+  candidates: IgnoreNoticeCandidate[]
+}
+export type IgnoreNoticeDecision = { skip: true } | { fingerprint: string; selected: number[] }
+
 export interface ImportResult {
+  ignored_transferred?: number
   statement_id: number
   transactions: number
   matched: number
@@ -235,9 +256,10 @@ export const bankApi = {
    * u víceměnového účtu se sdíleným číslem účtu, kdy server vrátí 409
    * `ambiguous_account_currency` se seznamem kandidátů (#167).
    */
-  upload: (file: File, accountId?: number) => {
+  upload: (file: File, accountId?: number, ignoreDecision?: IgnoreNoticeDecision) => {
     const fd = new FormData()
     fd.append('file', file)
+    if (ignoreDecision !== undefined) fd.append('ignore_decision', JSON.stringify(ignoreDecision))
     if (accountId !== undefined) fd.append('account_id', String(accountId))
     return api.post<ImportResult>('/bank-statements/upload', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -247,9 +269,10 @@ export const bankApi = {
    * Nahraje a rozparsuje PDF výpis banky bez GPC/ABO exportu (Creditas jako první,
    * rozšiřitelné). Stejná 409 `ambiguous_account_currency` volba účtu jako `upload()`.
    */
-  importPdf: (file: File, accountId?: number) => {
+  importPdf: (file: File, accountId?: number, ignoreDecision?: IgnoreNoticeDecision) => {
     const fd = new FormData()
     fd.append('file', file)
+    if (ignoreDecision !== undefined) fd.append('ignore_decision', JSON.stringify(ignoreDecision))
     if (accountId !== undefined) fd.append('account_id', String(accountId))
     return api.post<ImportResult>('/bank-statements/upload-pdf', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -280,8 +303,8 @@ export const bankApi = {
         ...(opts.max ? { max: opts.max } : {}),
       } },
     ).then(r => r.data),
-  ignore: (txId: number) =>
-    api.post<{ ignored: true }>(`/bank-transactions/${txId}/ignore`, {}).then(r => r.data),
+  ignore: (txId: number, note: string | null = null) =>
+    api.post<{ ignored: true; ignore_note: string | null }>(`/bank-transactions/${txId}/ignore`, { note }).then(r => r.data),
   unmatch: (txId: number) =>
     api.post<{ unmatched: true }>(`/bank-transactions/${txId}/unmatch`, {}).then(r => r.data),
   createPurchaseInvoice: (txId: number, vendorId: number) =>

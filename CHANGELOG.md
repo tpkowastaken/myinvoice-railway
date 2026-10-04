@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.59.0] - 2026-10-02
+
+### Added
+
+- **Přenos ignorování z e-mailových avíz do bankovního výpisu.** Při ručním importu GPC/ABO nebo PDF výpisu aplikace nabídne převzetí ignorování a poznámky z odpovídajících ručně ignorovaných e-mailových avíz. Uživatel vybere jednotlivé pohyby nebo použije „Vybrat vše“, případně import dokončí bez přenosu nebo zruší bez uložení výpisu. Nabízí se jen jednoznačné shody podle účtu, měny, částky včetně znaménka, data a VS nebo protiúčtu. Automaticky ignorovaná avíza a avíza navázaná na platby se vyřazují a jedno avízo lze použít nejvýše jednou. Automatické skenování adresáře zůstává bez přenosu. Migrace 0153 přidává `bank_transactions.ignore_origin` a auditní tabulku `bank_notice_ignore_transfers`, OpenAPI je aktualizované. (#285, díky @blondak)
+- **Akce v detailu bankovní transakce.** Detail pohybu nově nabízí podle stavu a oprávnění akce Vytvořit fakturu (nespárovaná odchozí platba), Spárovat, Ignorovat, Zrušit spárování a Zrušit ignorování. Zrušení akce vrátí původní detail, po dokončení se detail znovu neotevírá. (#284, díky @blondak)
+
+### Changed
+
+- **Texty o přechodu na MyÚčto.** Stránka přechodu, modal podpory, stránka Aktualizace a tip na dashboardu už neslibují, že vše zdarma v MyInvoice je zdarma i v MyÚčtu. Seznam placených doplňků je sjednocený: daňová evidence a účetnictví, mzdy a personalistika, sklady a e-shop, více účtovaných firem.
+
+## [4.58.0] - 2026-09-21
+
+### Added
+
+- **Poznámka k ignorování bankovního pohybu a jednotné dialogy transakcí.** Ignorování i zrušení spárování nově používají dialog aplikace s identifikací pohybu místo potvrzení prohlížeče. K ignorování lze připojit volitelnou poznámku (až 1000 znaků), která se zobrazí v detailu a zapisuje se do auditního logu. Zpětná akce se jmenuje „Zrušit ignorování" a upozorní na odstranění poznámky. Po akci se aktualizuje jen dotčený pohyb, filtr zůstává zachovaný a stránka se znovu nenačítá. Nový detail pohybu (ikona oka) ukazuje částku, stav, protistranu, účty, symboly, bankovní referenci, zůstatek, spárované faktury a nezkrácený popis. Migrace 0151 přidává `bank_transactions.ignore_note`, OpenAPI popisuje nové pole. (#281, díky @blondak)
+
+### Fixed
+
+- **Párování přijatých faktur podle platebního VS a se zaokrouhlením.** Bankovní párování hledalo přijaté faktury jen podle interního a dodavatelského čísla dokladu a samostatný platební variabilní symbol přehlíželo. Očekávaná částka navíc nezahrnovala zaokrouhlení, takže i úplná úhrada mohla skončit jako částečná shoda. Nově se zohledňuje `payment_variable_symbol` včetně normalizace úvodních nul a oddělovačů a částka k úhradě zahrnuje zaokrouhlení při zachování odpočtu uhrazených záloh. (#282, díky @blondak)
+- **Přepárování výpisu nezakládá duplicitní úhrady přijatých faktur.** Opakované „Přepárovat" u odchozí platby ve stavu částečné shody vkládalo při každém běhu další řádek párování. Částečná shoda podle VS se nově zahodí a vyhodnotí znovu, takže ji započtené zaokrouhlení povýší na přesnou. Shody, které už fakturu označily jako zaplacenou, zůstávají beze změny. (#272)
+- **Import vydaných faktur zachovává zaokrouhlení.** Import z Fakturoidu a iDokladu přepočítal celkovou částku z položek a zaokrouhlení zdroje zahodil, takže zaokrouhlená úhrada klienta vycházela jako přeplatek nebo částečná úhrada. Částka k úhradě vydané faktury nově zahrnuje zaokrouhlení (migrace 0152, u stávajících dokladů beze změny), Fakturoid přenáší rozdíl celku proti položkám, iDoklad ukládá zaokrouhlovací položku jako zaokrouhlení místo řádku s 0 % DPH. Dobropis ze storna vrací zaokrouhlení s opačným znaménkem, PDF i detail faktury zobrazují řádek Zaokrouhlení. Skript `api/bin/backfill-imported-invoice-rounding.php` doplní zaokrouhlení u dříve importovaných faktur (výchozí je dry-run). (#258)
+- **Importované otevřené vydané doklady jsou vystavené.** Neuhrazené, po splatnosti a částečně uhrazené doklady z iDokladu i Fakturoidu se nově zakládají jako vystavené se snapshoty a původním číslem, ne jako koncepty. Automatické upomínky jsou u nich vypnuté, aby historické pohledávky nezačaly hromadně upomínat. Doklad bez čísla zůstává konceptem. (#250)
+
+## [4.57.0] - 2026-09-09
+
+### Added
+
+- **Automatické odeslání TOTP při přihlášení.** Po zadání nebo vložení šesté číslice se kód odešle automaticky. Odeslání počká na captchu a nevytváří opakované ani souběžné požadavky. (#279)
+- **Oprava příštího termínu pravidelné fakturace.** Detail šablony umožňuje změnit příští termín po potvrzení kontroly existujících faktur. Kontroluje platnost data, již vytvořené doklady a otevřený koncept období. Ukončenou šablonu vrací do pozastaveného stavu. Ruční generování nově rozlišuje nahrazení plánovaného termínu a mimořádnou fakturu bez posunu plánu; dialog předem ukazuje výsledný termín. (#280)
+
+### Fixed
+
+- **Ruční fakturace zachovává původní cyklus šablony.** Příští termín se počítá od plánovaného data, nikoli od data ručně vytvořené faktury. Běžná editace zachovává opravený termín. Změnu plánu a generování chrání společný zámek; cron znovu ověřuje načtený termín, aby nepřepsal souběžnou opravu. (#280)
+- **Jednotné vyhodnocování splatnosti.** Faktura splatná dnes zůstává ve výchozím nastavení ve splatnosti až do konce dne. Seznamy, dashboard a souhrny klientů a zakázek používají stejnou hranici. Frontend respektuje nastavené časové pásmo aplikace a počítá kalendářní dny správně i při změně letního času. Volba `invoices.overdue_includes_today` umožňuje zahrnout dnešní doklady do označení a filtrů po splatnosti; upomínky jsou nadále dostupné až následující den. (#278)
+- **Import PDF výpisu Raiffeisenbank se zápornými zůstatky a rozpisem poplatků.** Parser podporuje záporný počáteční i konečný zůstatek. Dílčí částky rozpisu souhrnného poplatku nepřepisují částku bankovního pohybu a rozpis zůstává v jeho popisu. (#275)
+
 ## [4.56.4] — 2026-09-04
 
 ### Fixed

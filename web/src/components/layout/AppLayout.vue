@@ -768,7 +768,6 @@ onMounted(async () => {
         </header>
         <div class="p-5 space-y-3 text-sm text-neutral-700">
           <p>{{ t('support.myucto_intro') }}</p>
-          <p class="rounded-md bg-primary-50 border border-primary-500/30 text-primary-800 font-medium px-3 py-2.5">{{ t('support.myucto_free') }}</p>
           <div>
             <p class="font-medium text-neutral-800 mb-1.5">{{ t('support.myucto_better_title') }}</p>
             <ul class="space-y-1 list-disc pl-5">

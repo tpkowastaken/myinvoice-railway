@@ -9,6 +9,7 @@ use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Middleware\FirstRunLockMiddleware;
 use MyInvoice\Service\Auth\MfaPolicyService;
 use MyInvoice\Service\Auth\PasskeyService;
+use MyInvoice\Service\Invoice\OverduePolicy;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
 use Slim\Psr7\Factory\ResponseFactory;
@@ -30,9 +31,11 @@ final class SetupStatusActionTest extends TestCase
             new Config([
                 'auth' => ['passwordless_login' => ['enabled' => true]],
                 'captcha' => ['provider' => 'none'],
+                'app' => ['timezone' => 'UTC'],
             ]),
             $passkeys,
             $policy,
+            new OverduePolicy(new Config(['invoices' => ['overdue_includes_today' => true]])),
         );
 
         $response = $action(
@@ -43,6 +46,8 @@ final class SetupStatusActionTest extends TestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertTrue($body['passwordless_login_enabled']);
+        self::assertTrue($body['overdue_includes_today']);
+        self::assertSame('UTC', $body['timezone']);
     }
 
     public function testPasswordlessLoginDefaultsToHiddenWithoutProbingWebAuthn(): void
@@ -58,6 +63,7 @@ final class SetupStatusActionTest extends TestCase
             new Config(['captcha' => ['provider' => 'none']]),
             $passkeys,
             $policy,
+            new OverduePolicy(new Config([])),
         );
 
         $response = $action(
@@ -67,5 +73,7 @@ final class SetupStatusActionTest extends TestCase
         $body = json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
 
         self::assertFalse($body['passwordless_login_enabled']);
+        self::assertFalse($body['overdue_includes_today']);
+        self::assertSame('Europe/Prague', $body['timezone']);
     }
 }

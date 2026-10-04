@@ -9,6 +9,7 @@ use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Middleware\FirstRunLockMiddleware;
 use MyInvoice\Service\Auth\MfaPolicyService;
 use MyInvoice\Service\Auth\PasskeyService;
+use MyInvoice\Service\Invoice\OverduePolicy;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -23,6 +24,7 @@ final class SetupStatusAction
         private readonly Config $config,
         private readonly PasskeyService $passkeys,
         private readonly MfaPolicyService $mfaPolicy,
+        private readonly OverduePolicy $overduePolicy,
     ) {}
 
     public function __invoke(Request $request, Response $response): Response
@@ -30,6 +32,8 @@ final class SetupStatusAction
         return Json::ok($response, [
             'needs_setup' => $this->lockProbe->needsSetup(),
             'version'     => '0.1.0',
+            'overdue_includes_today' => $this->overduePolicy->includesToday(),
+            'timezone' => (string) $this->config->get('app.timezone', 'Europe/Prague'),
             'passwordless_login_enabled' =>
                 (bool) $this->config->get('auth.passwordless_login.enabled', false)
                 && $this->passkeys->isAvailable()

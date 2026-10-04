@@ -204,6 +204,7 @@ final class Config
     private static function baselineDefaults(): array
     {
         return [
+            'invoices' => ['overdue_includes_today' => false],
             'session' => [
                 'lock_after_minutes' => 0,
             ],
@@ -252,6 +253,7 @@ final class Config
             // App
             'MYINVOICE_APP_ENV'     => ['app.env', 'string'],
             'MYINVOICE_APP_DEBUG'   => ['app.debug', 'bool'],
+            'MYINVOICE_OVERDUE_INCLUDES_TODAY' => ['invoices.overdue_includes_today', 'bool'],
             'MYINVOICE_APP_URL'     => ['app.url', 'string'],
             'MYINVOICE_PEPPER'      => ['app.pepper', 'string'],
             'MYINVOICE_SECRET_KEY'  => ['app.secret_encryption_key', 'string'],

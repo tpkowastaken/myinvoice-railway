@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MyInvoice\Repository;
 
 use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Service\Invoice\OverduePolicy;
 use MyInvoice\Support\PublicAuthorityFeeText;
 use PDO;
 
@@ -30,6 +31,7 @@ final class PurchaseInvoiceRepository
     public function __construct(
         private readonly Connection $db,
         private readonly TaxConstantsRepository $taxConstants,
+        private readonly OverduePolicy $overduePolicy,
     ) {}
 
     /**
@@ -262,7 +264,8 @@ final class PurchaseInvoiceRepository
             $where[] = "pi.status IN ('received','booked')";
         }
         if (!empty($filters['overdue'])) {
-            $where[] = "pi.status IN ('received','booked') AND pi.due_date <= CURDATE()";
+            $operator = $this->overduePolicy->comparisonOperator();
+            $where[] = "pi.status IN ('received','booked') AND pi.due_date {$operator} CURDATE()";
         }
         if (!empty($filters['needs_review'])) {
             $where[] = "pi.extraction_warning IS NOT NULL";

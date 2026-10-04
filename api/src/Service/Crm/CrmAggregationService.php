@@ -1002,7 +1002,7 @@ final class CrmAggregationService
                 'type'     => 'myucto_upgrade',
                 'severity' => 'low',
                 'title'    => 'Přejděte zdarma na MyÚčto',
-                'hint'     => 'Nástupce MyInvoice od stejného autora — vše, co znáte, zdarma a s víc funkcemi',
+                'hint'     => 'Nástupce MyInvoice od stejného autora s víc funkcemi a aktivním vývojem',
                 'link'     => '/admin/upgrade',
             ];
         }

@@ -155,6 +155,16 @@ PHP);
         self::assertSame('15 minutes', $cfg->get('session.lock_after_minutes'));
     }
 
+    public function testOverdueBoundaryDefaultsToTomorrowAndSupportsBooleanEnv(): void
+    {
+        $this->unsetEnv('MYINVOICE_OVERDUE_INCLUDES_TODAY');
+        self::assertFalse(Config::load($this->tmpDir)->get('invoices.overdue_includes_today'));
+        $this->setEnv('MYINVOICE_OVERDUE_INCLUDES_TODAY', 'true');
+        self::assertTrue(Config::load($this->tmpDir)->get('invoices.overdue_includes_today'));
+        $this->setEnv('MYINVOICE_OVERDUE_INCLUDES_TODAY', 'false');
+        self::assertFalse(Config::load($this->tmpDir)->get('invoices.overdue_includes_today'));
+    }
+
     private function setEnv(string $name, string $value): void
     {
         if (!array_key_exists($name, $this->envBackup)) {

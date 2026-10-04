@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, markRaw, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, markRaw, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -74,6 +74,17 @@ onUnmounted(() => {
 
 const turnstile = useTurnstile()
 const turnstileEl = ref<HTMLElement | null>(null)
+const loginForm = ref<HTMLFormElement | null>(null)
+let pendingTotpSubmit = false
+
+watch([totp, turnstile.token], ([code], [previousCode]) => {
+  if (code !== previousCode) pendingTotpSubmit = /^\d{6}$/.test(code)
+  if (!pendingTotpSubmit || !totpRequired.value || auth.loading || passwordlessBusy.value || passkeyFlow.value) return
+  if (captchaRequired.value && !turnstile.token.value) return
+  // Jeden pokus na zadání kódu; obnovení captchy po chybě jej nesmí odeslat znovu.
+  pendingTotpSubmit = false
+  loginForm.value?.requestSubmit()
+}, { flush: 'post' })
 
 onMounted(async () => {
   await auth.fetchSetupStatus()
@@ -104,7 +115,7 @@ onMounted(async () => {
 })
 
 async function submit() {
-  if (passwordlessBusy.value) return
+  if (auth.loading || passwordlessBusy.value || passkeyFlow.value) return
   // Guard: pokud captcha vyžadovaná a token chybí, nepouštět request.
   // (button má `:disabled` ale Enter v inputu submitne form i s disabled buttonem
   //  → bez tohoto guardu by 1. pokus šel s prázdným tokenem → 400 captcha_failed.)
@@ -112,6 +123,7 @@ async function submit() {
     error.value = t('auth.captcha_loading')
     return
   }
+  pendingTotpSubmit = false
   error.value = ''
   otpInfo.value = ''
   mfaMethods.value = []
@@ -289,7 +301,7 @@ async function resendCode() {
         <h2 class="text-xl font-semibold mb-1">{{ t('auth.login_title') }}</h2>
         <p class="text-sm text-neutral-500 mb-6">{{ t('auth.login_subtitle') }}</p>
 
-        <form @submit.prevent="submit" class="space-y-4">
+        <form ref="loginForm" @submit.prevent="submit" class="space-y-4">
           <div v-if="auth.setupStatus?.passwordless_login_enabled" class="space-y-3">
             <button
               v-if="passkeySupported"
@@ -341,6 +353,7 @@ async function resendCode() {
             <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('auth.totp_code') }}</label>
             <input
               v-model="totp"
+              :disabled="auth.loading"
               type="text"
               inputmode="numeric"
               autocomplete="one-time-code"
