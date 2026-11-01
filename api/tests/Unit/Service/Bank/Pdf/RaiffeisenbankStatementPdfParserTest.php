@@ -96,6 +96,32 @@ final class RaiffeisenbankStatementPdfParserTest extends TestCase
         );
     }
 
+    /**
+     * Vklad hotovosti na pobočce nese ve sloupci „Poplatek" poplatek za vklad a ve sloupci
+     * „Částka" plnou vloženou částku, obojí na jednom řádku. Na účtu jsou to dva pohyby:
+     * zůstatek i „Výdaje celkem" poplatek obsahují zvlášť.
+     */
+    public function testCashDepositWithFeeOnSameLineYieldsDepositAndSeparateFee(): void
+    {
+        $rows = "29. 6. 2026\n29. 6. 2026\n1000000002\n"
+              . "Hotovostní transakceVklad hotovosti\n"
+              . "Vklad ; Pobočka Testov, Testovací 1\n"
+              . "-49.00 12 300.00 CZK\n";
+        $text = $this->statement('1 000.00', '13 251.00', '12 300.00', '49.00', $rows);
+
+        $result = $this->parser()->parse('%PDF-fake', $text);
+
+        self::assertCount(2, $result['transactions']);
+        [$deposit, $fee] = $result['transactions'];
+        self::assertSame(12300.0, $deposit['amount']);
+        self::assertSame('1000000002', $deposit['bank_ref']);
+        self::assertSame(-49.0, $fee['amount']);
+        self::assertSame('2026-06-29', $fee['posted_at']);
+        self::assertSame('1000000002-POPLATEK', $fee['bank_ref']);
+        self::assertStringStartsWith('Poplatek', (string) $fee['description']);
+        self::assertSame('CZK', $fee['currency']);
+    }
+
     public function testParsesIncomingPaymentWithCounterpartyName(): void
     {
         // Příchozí úhrada: Kategorie / účet / Název protiúčtu / Typ+částka (bez znaménka).

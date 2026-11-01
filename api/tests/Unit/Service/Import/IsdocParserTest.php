@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MyInvoice\Tests\Unit\Service\Import;
 
+use MyInvoice\Service\Import\ImportedInvoiceRounding;
 use MyInvoice\Service\Import\IsdocParser;
 use PHPUnit\Framework\TestCase;
 
@@ -144,6 +145,27 @@ XML;
         $xml = str_replace('</Invoice>', $monetary . '</Invoice>', $this->minimalIsdoc());
         $inv = $this->parser->parse($xml)['invoices'][0];
         self::assertSame(1000.0, $inv['payable_amount'], 'payable_amount = PayableAmount (k úhradě po zaokrouhlení)');
+        self::assertSame(0.01, $inv['payable_rounding']);
+        self::assertSame(0.0, $inv['paid_deposits_amount']);
+    }
+
+    /** #289: Fakturovač píše PayableAmount 0, zaokrouhlení nese jen PayableRoundingAmount. */
+    public function testIssuedRoundingFromPayableRoundingWhenPayableAmountIsZero(): void
+    {
+        $monetary = <<<XML
+  <LegalMonetaryTotal>
+    <TaxExclusiveAmount>430</TaxExclusiveAmount>
+    <TaxInclusiveAmount>430.0000</TaxInclusiveAmount>
+    <PayableRoundingAmount>-0.1000</PayableRoundingAmount>
+    <PaidDepositsAmount>0</PaidDepositsAmount>
+    <PayableAmount>0</PayableAmount>
+  </LegalMonetaryTotal>
+
+XML;
+        $xml = str_replace('</Invoice>', $monetary . '</Invoice>', $this->minimalIsdoc());
+        $inv = $this->parser->parse($xml)['invoices'][0];
+        self::assertSame(-0.1, $inv['payable_rounding']);
+        self::assertEqualsWithDelta(-0.1, ImportedInvoiceRounding::fromIsdoc($inv, 430.1), 0.0001);
     }
 
     public function testPaymentAccountAbsentWhenOnlyDueDate(): void

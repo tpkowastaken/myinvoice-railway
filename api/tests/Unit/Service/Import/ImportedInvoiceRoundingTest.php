@@ -56,6 +56,27 @@ final class ImportedInvoiceRoundingTest extends TestCase
         self::assertNull(ImportedInvoiceRounding::fromIdokladItems([['ItemType' => 1, 'Prices' => ['TotalWithVat' => 12.5]]]));
     }
 
+    public static function isdocDocs(): array
+    {
+        return [
+            'PayableRoundingAmount, PayableAmount 0 (Fakturovač)' => [['payable_rounding' => -0.1, 'payable_amount' => 0.0, 'paid_deposits_amount' => 0.0], 430.1, -0.1],
+            'PayableRoundingAmount nahoru'           => [['payable_rounding' => 0.24, 'payable_amount' => 1641.0], 1640.76, 0.24],
+            'explicitní nulové zaokrouhlení'         => [['payable_rounding' => 0.0, 'payable_amount' => 1641.0], 1640.76, 0.0],
+            'bez PayableRoundingAmount, z PayableAmount' => [['payable_rounding' => null, 'payable_amount' => 1056.0], 1056.33, -0.33],
+            'dobropis se zápornými řádky'            => [['payable_rounding' => null, 'payable_amount' => 1641.0], -1640.76, -0.24],
+            'odečtená záloha se nehádá'              => [['payable_rounding' => null, 'payable_amount' => 641.0, 'paid_deposits_amount' => 1000.0], 1640.76, 0.0],
+            'nulový PayableAmount bez zaokrouhlení'  => [['payable_rounding' => null, 'payable_amount' => 0.0], 430.1, 0.0],
+            'nevěrohodné zaokrouhlení'               => [['payable_rounding' => 3.0], 1000.0, 0.0],
+            'Pohoda bez monetary polí'               => [[], 1000.5, 0.0],
+        ];
+    }
+
+    #[DataProvider('isdocDocs')]
+    public function testIsdocRounding(array $inv, float $computed, float $expected): void
+    {
+        self::assertEqualsWithDelta($expected, ImportedInvoiceRounding::fromIsdoc($inv, $computed), 0.0001);
+    }
+
     public function testIdokladRoundingFallsBackToUnitPrice(): void
     {
         self::assertEqualsWithDelta(-0.33, ImportedInvoiceRounding::fromIdokladItems([['ItemType' => 1, 'Amount' => 1, 'UnitPrice' => -0.33]]), 0.0001);

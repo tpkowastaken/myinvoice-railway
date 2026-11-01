@@ -18,7 +18,7 @@ samotného skriptu, takže jsou přenositelné mezi `C:\inetpub\wwwroot\…`,
 |---|---|
 | `cron-cleanup.{cmd,sh}` | Čištění expirovaných session, starých logů, PDF cache, login_attempts |
 | `cron-backup.{cmd,sh}` | mariadb-dump celé DB do `storage/backup/YYYY-MM-DD.zip`, retention 30 dní |
-| `cron-backup-pdf.{cmd,sh}` | ZIP všech PDF (`storage/invoices/` + `storage/work-reports/`) do `storage/backup/{dbname}-pdf-YYYY-MM-DD.zip`, stejná retention jako `cron-backup` |
+| `cron-backup-pdf.{cmd,sh}` | ZIP PDF, příloh a originálů faktur (`storage/invoices/`, `invoices-imported/`, `work-reports/`, `purchase-invoices/`) do `storage/backup/{dbname}-pdf-YYYY-MM-DD.zip`, stejná retention jako `cron-backup` |
 | `cron-backup-documents.{cmd,sh}` | ZIP celé sekce Dokumenty (`storage/documents/`, všechny typy; vynechává `_thumbs`/`_jobs`) do `storage/backup/{dbname}-documents-YYYY-MM-DD.zip`, stejná retention; oddělené od `cron-backup-pdf` (ten Dokumenty nezahrnuje) |
 | `cron-bank-scan.{cmd,sh}` | Auto-import nových GPC výpisů z `private/bank-incoming/` + matching plateb na faktury |
 | `cron-bank-email-notices.{cmd,sh}` | IMAP polling bankovních e-mailových avíz, parsování plateb a matching na faktury (konfigurace v **Admin → Bankovní účty**) |

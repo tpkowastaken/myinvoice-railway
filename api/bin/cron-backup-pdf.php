@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Denní záloha PDF souborů — storage/invoices/, storage/work-reports/, storage/purchase-invoices/
+ * Denní záloha faktur — PDF, přílohy a originály v storage/invoices/,
+ * storage/invoices-imported/, storage/work-reports/, storage/purchase-invoices/
  * → ZIP do storage/backup/{dbname}-pdf-YYYY-MM-DD.zip.
  * Retention: 30 denních + 12 měsíčních (1. v měsíci se zachová déle).
  *
@@ -54,36 +55,18 @@ if (($msg = BackupEncryption::unsupportedReason($zipPassword)) !== null) {
 $date = date('Y-m-d_H-i');
 $file = "$backupDir/$dbName-pdf-$date.zip";
 
-$sources = [
-    \MyInvoice\Infrastructure\Config\RuntimePaths::storage('invoices'),
-    \MyInvoice\Infrastructure\Config\RuntimePaths::storage('work-reports'),
-    // Přijaté faktury — archive PDF od dodavatelů (fáze 1 integrace forku).
-    // Default storage/purchase-invoices; pokud user nastaví custom archive_storage
-    // v cfg.php, použijeme tu cestu.
-    (string) ($config->get('purchase_invoice.archive_storage', '') ?: \MyInvoice\Infrastructure\Config\RuntimePaths::storage('purchase-invoices')),
-];
-
-// Sesbírej všechny .pdf rekurzivně
-$pdfs = [];
-foreach ($sources as $src) {
-    if (!is_dir($src)) continue;
-    $it = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($src, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::LEAVES_ONLY
-    );
-    foreach ($it as $entry) {
-        if (!$entry->isFile()) continue;
-        if (strtolower($entry->getExtension()) !== 'pdf') continue;
-        $abs = $entry->getPathname();
-        // Relativní cesta uvnitř ZIPu (bez prefixu rootDir, s lomítky)
-        $rel = ltrim(str_replace('\\', '/', substr($abs, strlen($rootDir))), '/');
-        $pdfs[$abs] = $rel;
-    }
-}
+$pdfs = \MyInvoice\Service\Backup\BackupFileCollector::collect(
+    \MyInvoice\Service\Backup\InvoiceBackupSources::sources($config),
+    [],
+    [],
+    static function (string $abs): void {
+        fprintf(STDERR, "  ✗ soubor mimo zdrojový adresář, přeskočen: %s\n", $abs);
+    },
+);
 
 if (count($pdfs) === 0) {
-    echo "[" . date('Y-m-d H:i:s') . "] backup-pdf: žádné PDF k záloze (storage/invoices/ ani storage/work-reports/ neobsahuje .pdf).\n";
-    $run->finish('ok', ['files' => 0, 'note' => 'no PDFs to back up']);
+    echo "[" . date('Y-m-d H:i:s') . "] backup-pdf: žádné soubory faktur k záloze.\n";
+    $run->finish('ok', ['files' => 0, 'note' => 'no invoice files to back up']);
     exit(0);
 }
 

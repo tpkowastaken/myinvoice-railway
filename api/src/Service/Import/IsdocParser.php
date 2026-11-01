@@ -191,6 +191,9 @@ final class IsdocParser
             // dopočítá rounding offset proti součtu položek (viz IsdocToPurchaseInvoiceMapper).
             // U cizoměnového dokladu preferuje *Curr (v měně faktury, jako řádkové totály).
             'payable_amount' => $this->parsePayableAmount($xpath, $root, $hasForeignCurrency),
+            // Zaokrouhlení a odečtené zálohy pro vydané doklady (ImportedInvoiceRounding::fromIsdoc).
+            'payable_rounding'     => $this->parseMonetary($xpath, $root, 'PayableRoundingAmount', $hasForeignCurrency),
+            'paid_deposits_amount' => $this->parseMonetary($xpath, $root, 'PaidDepositsAmount', $hasForeignCurrency),
             // Rekapitulace DPH po sazbách z <TaxTotal>/<TaxSubTotal> — pro seed
             // override (PurchaseVatRecapSeeder), aby naše evidence seděla na doklad.
             // Nedaňový doklad (VATApplicable=false) DPH nepřiznává → prázdná rekapitulace.
@@ -360,8 +363,14 @@ final class IsdocParser
      */
     private function parsePayableAmount(\DOMXPath $xpath, \DOMElement $root, bool $foreignCurrency): ?float
     {
-        $curr = $this->text($xpath, 'i:LegalMonetaryTotal/i:PayableAmountCurr', $root);
-        $loc  = $this->text($xpath, 'i:LegalMonetaryTotal/i:PayableAmount', $root);
+        return $this->parseMonetary($xpath, $root, 'PayableAmount', $foreignCurrency);
+    }
+
+    /** Částka z <LegalMonetaryTotal>, u cizí měny preferuje *Curr. Null = element chybí. */
+    private function parseMonetary(\DOMXPath $xpath, \DOMElement $root, string $element, bool $foreignCurrency): ?float
+    {
+        $curr = $this->text($xpath, 'i:LegalMonetaryTotal/i:' . $element . 'Curr', $root);
+        $loc  = $this->text($xpath, 'i:LegalMonetaryTotal/i:' . $element, $root);
         $val  = ($foreignCurrency && $curr !== '') ? $curr : $loc;
         return $val !== '' ? (float) $val : null;
     }

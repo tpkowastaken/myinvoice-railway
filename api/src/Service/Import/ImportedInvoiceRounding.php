@@ -78,6 +78,34 @@ final class ImportedInvoiceRounding
         return $found && abs($sum) < 1.0 ? $sum : null;
     }
 
+    /**
+     * ISDOC (#289): primárně `<PayableRoundingAmount>`. Je to jediný spolehlivý
+     * zdroj, některé exportéry (Fakturovač) píšou `<PayableAmount>` 0 a do
+     * `<TaxInclusiveAmount>` už zaokrouhlenou částku. Bez něj rozdíl nenulového
+     * `<PayableAmount>` proti přepočtu, ale jen když doklad neodečítá zálohy.
+     * Položky přebíráme ve znaménku dokladu, takže zaokrouhlení se neotáčí.
+     *
+     * @param array<string,mixed> $inv výstup IsdocParser
+     */
+    public static function fromIsdoc(array $inv, float $computedWithVat): float
+    {
+        $rounding = $inv['payable_rounding'] ?? null;
+        if (is_numeric($rounding)) {
+            $rounding = round((float) $rounding, 2);
+            return self::isPlausible($rounding) ? $rounding : 0.0;
+        }
+        $payable  = $inv['payable_amount'] ?? null;
+        $deposits = is_numeric($inv['paid_deposits_amount'] ?? null) ? (float) $inv['paid_deposits_amount'] : 0.0;
+        if (!is_numeric($payable) || abs((float) $payable) < 0.005 || abs($deposits) >= 0.005) {
+            return 0.0;
+        }
+        $diff = round(abs((float) $payable) - abs($computedWithVat), 2);
+        if ($computedWithVat < 0) {
+            $diff = -$diff;
+        }
+        return self::isPlausible($diff) ? $diff : 0.0;
+    }
+
     private static function isPlausible(float $rounding): bool
     {
         return abs($rounding) >= 0.005 && abs($rounding) < 1.0;

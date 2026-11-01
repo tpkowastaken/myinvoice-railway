@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  cron-backup-pdf.sh — denní záloha PDF souborů (storage/invoices/ +
-#  storage/work-reports/) do storage/backup/{dbname}-pdf-YYYY-MM-DD.zip
+#  cron-backup-pdf.sh — denní záloha PDF, příloh a originálů faktur
+#  (invoices/, invoices-imported/, work-reports/, purchase-invoices/) do storage/backup/{dbname}-pdf-YYYY-MM-DD.zip
 #  Frekvence: 1× denně, doporučeno 02:30 (po cron-backup, před cron-cleanup)
 #  Retention: 30 denních + 12 měsíčních (1. v měsíci se zachová déle)
 #

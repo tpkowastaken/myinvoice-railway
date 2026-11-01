@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.59.4] - 2026-10-29
+
+### Added
+
+- **Anglická e-mailová avíza Fio banky.** Systémový Fio parser rozpozná i avíza v angličtině („the balance of account … has increased by CZK 1.00 on 10/25/2026"), vlastní regex provider na ně už není potřeba. (#291)
+
+### Fixed
+
+- **Nahrávání přijatých faktur z iPhonu.** Service worker přeposílal požadavky na API a iOS Safari při tom zahodilo tělo souboru, takže AI extrakce i import přijatých faktur končily chybou „Nahrajte PDF" / „Nahrajte alespoň jeden soubor". Požadavky na API teď service worker nechává přímo prohlížeči. Aplikaci přidanou na plochu iPhonu je po aktualizaci potřeba ukončit a znovu spustit. (#292)
+- **Doména ve whitelistu odesílatelů e-mailových avíz.** Položka bez „@" (např. `fio.cz`) se dřív brala jen jako přesná adresa, takže prošla v Testu parseru, ale při scanu schránky s odesílatelem `automat@fio.cz` ne. Nově znamená doménu včetně subdomén. (#291)
+- **Automatický scan e-mailových avíz u všech dodavatelů.** Cron skenoval jen výchozího dodavatele z konfigurace, schránka nastavená u jiného dodavatele se zpracovala jen ručně. Nově projde všechny dodavatele se zapnutou IMAP schránkou. (#291)
+
+## [4.59.3] - 2026-10-21
+
+### Security
+
+- **Docker image na PHP 8.5.12.** Obraz se staví na PHP 8.5.12 s bezpečnostními opravami jádra PHP (GHSA-w8hw-w9fx-j79w, GHSA-6wmf-4rv5-p3rp) a řadou oprav use-after-free. Doporučujeme aktualizovat.
+
+### Fixed
+
+- **Sestavení Docker image nezávisí na pecl.php.net.** Rozšíření redis se sestavuje ze zdrojů phpredis 6.3.0 s připnutou verzí, takže výpadek PECL už nezastaví publikaci image.
+
+## [4.59.2] - 2026-10-15
+
+### Fixed
+
+- **PDF výpis Raiffeisenbank s vkladem hotovosti a poplatkem na jednom řádku.** Vklad hotovosti na pobočce tiskne RB na jeden řádek se sloupcem Poplatek. Parser bral jen poslední částku, poplatek zahodil a kontrola součtů pak odmítla celý výpis. Nově vznikne vklad v plné výši a samostatný pohyb poplatku, takže součty sedí na zůstatek výpisu.
+
+## [4.59.1] - 2026-10-14
+
+### Fixed
+
+- **Import vydaných faktur z ISDOC zachovává zaokrouhlení.** Import zahazoval `PayableRoundingAmount`, takže částka k úhradě zůstala haléřová a zaokrouhlená úhrada klienta vyšla jako nedoplatek. Zaokrouhlení se nově převezme do `invoices.rounding` přímo z `PayableRoundingAmount`, a když chybí, z rozdílu nenulového `PayableAmount` proti položkám (jen u dokladu bez odečtených záloh). Do DPH ani položek nevstupuje. (#289, díky @janvalentik)
+- **Výzva „Pošli upomínky“ se shoduje se seznamem faktur po splatnosti.** Výzva na dashboardu započítávala i faktury splatné dnes, zatímco seznam je ve výchozím nastavení ukazuje až následující den. Nově používá stejnou hranici splatnosti (`OverduePolicy`) jako seznam, včetně volitelného zahrnutí dnešní splatnosti. (#287, díky @blondak)
+- **PDF záloha obsahuje originály a přílohy faktur.** `cron-backup-pdf` dřív bral jen soubory `.pdf` a vynechával strojové originály přijatých faktur (ISDOC, ISDOCX, XML, JSON), přílohy vystavených faktur jiných typů i převzatá PDF z `invoices-imported`. Archiv `*-pdf-*.zip` je nově obsahuje a používá pevné cesty `storage/...` i při externím úložišti nebo nastaveném `MYINVOICE_DATA_DIR`. Soubory mimo zdrojový adresář (symlinky) se přeskočí. (#288, díky @blondak)
+
+### Documentation
+
+- Manuál popisuje obsah záloh a doporučené časy `cron-backup-pdf` a `cron-backup-documents`, a hranici splatnosti u výzvy k upomínkám.
+
 ## [4.59.0] - 2026-10-02
 
 ### Added

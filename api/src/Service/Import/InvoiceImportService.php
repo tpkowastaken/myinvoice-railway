@@ -487,7 +487,13 @@ final class InvoiceImportService
         $this->insertItems($invoiceId, $inv['items'] ?? []);
 
         // Recompute totals (z položek)
-        $this->calculator->recompute($invoiceId);
+        $computed = $this->calculator->recompute($invoiceId);
+        // #289: zaokrouhlení zdrojového dokladu, jinak klientova zaokrouhlená
+        // úhrada vyjde jako nedoplatek / přeplatek (stejně jako #258).
+        $rounding = ImportedInvoiceRounding::fromIsdoc($inv, (float) $computed['totals']['with_vat']);
+        if ($rounding !== 0.0) {
+            $this->invoices->setRounding($invoiceId, $rounding);
+        }
 
         // Snapshoty z aktuálního supplier/client/bank
         $snapshots = $this->snapshots->build($clientId, $currencyId, $supplierId);

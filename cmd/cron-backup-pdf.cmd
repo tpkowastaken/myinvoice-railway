@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================================
-REM  cron-backup-pdf.cmd — denni zaloha PDF souboru (storage/invoices/ +
-REM  storage/work-reports/) do storage/backup/{dbname}-pdf-YYYY-MM-DD.zip
+REM  cron-backup-pdf.cmd — denni zaloha PDF, priloh a originalu faktur
+REM  (invoices/, invoices-imported/, work-reports/, purchase-invoices/) do storage/backup/{dbname}-pdf-YYYY-MM-DD.zip
 REM  Frekvence: 1x denne, doporuceno 02:30 (PO cron-backup, PRED cron-cleanup)
 REM  Retention: 30 dennich + 12 mesicnich (1. v mesici se zachova deze)
 REM

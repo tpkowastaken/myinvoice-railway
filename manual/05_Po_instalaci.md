@@ -49,11 +49,23 @@ V `cmd/` jsou připravené `.cmd` (Windows Task Scheduler) i `.sh` (Linux cron) 
 |---|---|
 | `cron-cleanup` | 1× denně 03:00 |
 | `cron-backup` | 1× denně 02:00 |
+| `cron-backup-pdf` | 1× denně 02:30 |
+| `cron-backup-documents` | 1× denně 02:35 |
 | `cron-bank-scan` | každých 30 min |
 | `cron-bank-email-notices` | každých 30 min |
 | `cron-send-reminders` | 1× denně 09:00, Po–Pá |
 
 Detaily v `cmd/README.md`.
+
+**Obsah záloh:** `cron-backup` vytvoří ZIP s databází. `cron-backup-pdf`
+vytvoří ZIP `*-pdf-*.zip` s PDF faktur a výkazů práce, přílohami vystavených
+faktur, převzatými originály z `invoices-imported` a originály přijatých faktur
+(PDF, ISDOC, ISDOCX, XML a JSON). Pro obnovu dokladů uchovávejte databázový
+ZIP i tento soubor. Archivy používají pevné cesty `storage/...` také při
+externím úložišti a nastaveném `MYINVOICE_DATA_DIR`.
+
+`cron-backup-documents` zálohuje samostatnou sekci Dokumenty (`storage/documents`),
+nikoli originály faktur. Pokud tato sekce neobsahuje soubory, ZIP nevznikne.
 
 **Šifrování záloh:** volitelné heslo `cron.backup.password` v `cfg.php`
 zašifruje všechny tři typy ZIP záloh (DB dump, PDF dokladů, sekce Dokumenty)
