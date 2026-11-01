@@ -1,0 +1,37 @@
+name: Sync upstream
+
+# Upstream i tento fork používají master, nikoli main.
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'tpkowastaken/myinvoice-railway'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Merge upstream master and run CI when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          before=$(gh api "repos/$GH_REPO/branches/master" --jq '.commit.sha')
+          # GitHub zachová vlastní commity forku; při konfliktu API selže.
+          gh api --method POST "repos/$GH_REPO/merge-upstream" -f branch=master
+          after=$(gh api "repos/$GH_REPO/branches/master" --jq '.commit.sha')
+          if [[ "$before" != "$after" ]]; then
+            # Změna přes GITHUB_TOKEN sama nespouští push workflow.
+            gh workflow run ci.yml --repo "$GH_REPO" --ref master
+          fi
